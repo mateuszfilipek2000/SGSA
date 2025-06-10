@@ -180,7 +180,7 @@ plt.title('Macierz pomyłek - Scikit-learn Logistic Regression')
 plt.xlabel('Przewidywana etykieta')
 plt.ylabel('Prawdziwa etykieta')
 plt.savefig('confusion_matrix_sklearn.png')
-plt.show()
+plt.close()
 
 # Rozkład współczynnika pozytywnych recenzji
 plt.figure(figsize=(7, 4))
@@ -189,17 +189,18 @@ plt.title('Rozkład współczynnika pozytywnych recenzji')
 plt.xlabel('Współczynnik recenzji (Pozytywne / Wszystkie)')
 plt.ylabel('Liczba gier')
 plt.savefig('review_ratio_distribution.png')
-plt.show()
+plt.close()
 
 # Liczba udanych vs. nieudanych gier
 plt.figure(figsize=(5, 4))
-sns.countplot(x='is_successful', data=df, palette='Set2')
+sns.countplot(x='is_successful', data=df, hue='is_successful', palette='Set2', legend=False)
+
 plt.title('Liczba udanych vs. nieudanych gier')
 plt.xlabel('Czy udana (1=Tak, 0=Nie)')
 plt.ylabel('Liczba gier')
 plt.xticks([0, 1], ['Nieudana', 'Udana'])
 plt.savefig('success_count.png')
-plt.show()
+plt.close()
 
 # Macierz korelacji cech
 plt.figure(figsize=(10, 8))
@@ -207,7 +208,7 @@ corr = df[features + ['is_successful']].corr()
 sns.heatmap(corr, annot=False, cmap='coolwarm', center=0)
 plt.title('Macierz korelacji cech')
 plt.savefig('correlation_matrix.png')
-plt.show()
+plt.close()
 
 # Rozkład cen gier
 plt.figure(figsize=(7, 4))
@@ -216,39 +217,40 @@ plt.title('Rozkład cen gier')
 plt.xlabel('Cena (USD)')
 plt.ylabel('Liczba gier')
 plt.savefig('price_distribution.png')
-plt.show()
+plt.close()
 
 # Najpopularniejsze gatunki i kategorie
 # Top 10 gatunków
 all_genres = df['genres'].explode().dropna()
 top_genres = all_genres.value_counts().head(10)
 plt.figure(figsize=(8, 4))
-sns.barplot(x=top_genres.values, y=top_genres.index, palette='crest')
+sns.barplot(x=top_genres.values, y=top_genres.index, hue=top_genres.index, palette='crest', legend=False)
 plt.title('10 najpopularniejszych gatunków')
 plt.xlabel('Liczba gier')
 plt.ylabel('Gatunek')
 plt.savefig('top10_genres.png')
-plt.show()
+plt.close()
+
 # Top 10 kategorii
 all_categories = df['categories'].explode().dropna()
 top_categories = all_categories.value_counts().head(10)
 plt.figure(figsize=(8, 4))
-sns.barplot(x=top_categories.values, y=top_categories.index, palette='flare')
+sns.barplot(x=top_categories.values, y=top_categories.index, hue=top_categories.index, palette='flare', legend=False)
 plt.title('10 najpopularniejszych kategorii')
 plt.xlabel('Liczba gier')
 plt.ylabel('Kategoria')
 plt.savefig('top10_categories.png')
-plt.show()
+plt.close()
 
 # Zależność między ceną a sukcesem
 plt.figure(figsize=(7, 4))
-sns.boxplot(x='is_successful', y='price', data=df, palette='Set3')
+sns.boxplot(x='is_successful', y='price', data=df, hue='is_successful', palette='Set3', legend=False)
 plt.title('Cena vs. sukces gry')
 plt.xlabel('Czy udana (0=Nie, 1=Tak)')
 plt.ylabel('Cena (USD)')
 plt.xticks([0, 1], ['Nieudana', 'Udana'])
 plt.savefig('price_vs_success.png')
-plt.show()
+plt.close()
 
 # Rozkład ocen Metacritic (jeśli dostępne)
 if (df['metacritic_score'] > 0).sum() > 0:
@@ -258,17 +260,21 @@ if (df['metacritic_score'] > 0).sum() > 0:
     plt.xlabel('Ocena Metacritic')
     plt.ylabel('Liczba gier')
     plt.savefig('metacritic_score_distribution.png')
-    plt.show()
+    plt.close()
 
 # Wsparcie platform
-platform_counts = {'Windows': df['windows'].sum(), 'Mac': df['mac'].sum(), 'Linux': df['linux'].sum()}
+platform_counts = {
+    'Platforma': ['Windows', 'Mac', 'Linux'],
+    'Liczba_gier': [df['windows'].sum(), df['mac'].sum(), df['linux'].sum()]
+}
+platform_df = pd.DataFrame(platform_counts)
 plt.figure(figsize=(6, 4))
-sns.barplot(x=list(platform_counts.keys()), y=list(platform_counts.values()), palette='pastel')
+sns.barplot(data=platform_df,x='Platforma', y='Liczba_gier', hue='Platforma', palette='pastel', legend=False)
 plt.title('Wsparcie platform')
 plt.xlabel('Platforma')
 plt.ylabel('Liczba gier')
 plt.savefig('platform_support.png')
-plt.show()
+plt.close()
 
 # Korelacja między czasem gry a sukcesem
 if 'average_playtime_forever' in df.columns:
@@ -278,4 +284,74 @@ if 'average_playtime_forever' in df.columns:
     plt.xlabel('Średni czas gry (minuty)')
     plt.ylabel('Czy udana (0=Nie, 1=Tak)')
     plt.savefig('playtime_vs_success.png')
-    plt.show()
+    plt.close()
+
+##### Znalezienie w zbiorze gry o największej szansie odniesienia sukcesu #####
+
+# Przygotowanie danych
+X_all_scaled = scaler.transform(df[features])
+
+# Przewidywane prawdopodobieństwa sukcesu przez oba modele
+df['predicted_success_prob_sklearn'] = sk_model.predict_proba(X_all_scaled)[:, 1]
+df['predicted_success_prob_custom'] = custom_model.predict_proba(X_all_scaled)
+
+# Znalezienie gry o najwyższym prawdopodobieństwie sukcesu
+top_game_idx = df['predicted_success_prob_sklearn'].idxmax()
+top_game = df.loc[top_game_idx]
+
+print("\n🎯 Najbardziej obiecująca gra (wg scikit-learn):")
+print(f"- app_id: {top_game['app_id']}")
+print(f"- Tytuł: {top_game.get('name', 'Brak nazwy')}")
+print(f"- Cena: ${top_game['price']}")
+print(f"- Liczba osiągnięć: {top_game['achievements']}")
+print(f"- Prawdopodobieństwo sukcesu (sklearn): {top_game['predicted_success_prob_sklearn']:.4f}")
+print(f"- Prawdopodobieństwo sukcesu (custom): {top_game['predicted_success_prob_custom']:.4f}")
+print(f"- Gatunki: {top_game['genres']}")
+print(f"- Kategorie: {top_game['categories']}")
+
+##### Stworzenie teoretycznie "idealnej" gry na podstawie wyliczeń parametrów w zbiorze #####
+
+successful_games = df[df['is_successful'] == 1]
+
+ideal_game = {}
+
+# Cecha ciągła – średnia lub mediana dla sukcesów
+for col in ['price', 'dlc_count', 'achievements', 'game_age']:
+    ideal_game[col] = successful_games[col].median()
+
+# Platformy – które platformy występują najczęściej w udanych grach
+for col in ['windows', 'mac', 'linux']:
+    ideal_game[col] = int(successful_games[col].mean() > 0.5)
+
+# Gatunki i kategorie – wybieramy te, które najczęściej pojawiają się w udanych grach
+genre_cols = [col for col in df.columns if col.startswith('genre_')]
+top_genres = successful_games[genre_cols].mean().sort_values(ascending=False).head(2).index.tolist()
+
+cat_cols = [col for col in df.columns if col.startswith('cat_')]
+top_categories = successful_games[cat_cols].mean().sort_values(ascending=False).head(2).index.tolist()
+
+for col in genre_cols:
+    ideal_game[col] = 1 if col in top_genres else 0
+
+for col in cat_cols:
+    ideal_game[col] = 1 if col in top_categories else 0
+
+# Konwersja do DataFrame
+ideal_game_df = pd.DataFrame([ideal_game])
+
+# Uzupełnienie brakujących kolumn
+for col in features:
+    if col not in ideal_game_df.columns:
+        ideal_game_df[col] = 0
+
+# Skalowanie i predykcja
+X_ideal = scaler.transform(ideal_game_df[features])
+prob = sk_model.predict_proba(X_ideal)[0][1]
+pred = sk_model.predict(X_ideal)[0]
+
+# Wyświetlenie idealnej gry
+print("\n🧠 Teoretyczna gra o największej szansie na sukces:")
+for k, v in ideal_game.items():
+    print(f"- {k}: {v}")
+print(f"\n🎯 Model przewiduje sukces: {'✅ TAK' if pred==1 else '❌ NIE'}")
+print(f"🔮 Prawdopodobieństwo sukcesu: {prob:.4f}")
